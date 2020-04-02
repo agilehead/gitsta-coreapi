@@ -1,5 +1,6 @@
 BASEDIR=$(dirname "$0")
 
+export OPENSSL_STATIC=1
 export OPENSSL_LIB_DIR=`realpath "$BASEDIR"/deps/openssl`
 export OPENSSL_INCLUDE_DIR=`realpath "$BASEDIR"/deps/openssl/include`
 
