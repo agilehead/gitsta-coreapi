@@ -1,0 +1,20 @@
+[lib]
+name = "gitstacoreapi"
+crate_type = ["staticlib", "cdylib"]
+
+[package]
+name = "gitstacoreapi"
+version = "0.0.1"
+authors = ["Jeswin Kumar<jeswinpk@agilehead.com>"]
+edition = "2018"
+
+[dependencies]
+tokio = { version = "0.2.13", features = ["rt-threaded", "sync", "fs"] }
+git2 = { version = "0.10" }
+lazy_static = { version = "1.4.0" }
+rusqlite = { version = "0.21.0", features = ["bundled"] }
+serde_json = { version = "1.0" }
+
+# this dependency is only needed for Android.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.13.1", default-features = false }
