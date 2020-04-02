@@ -1,7 +1,7 @@
 BASEDIR=$(dirname "$0")
 
-export OPENSSL_LIB_DIR=`realpath "$BASEDIR"/../external-deps/openssl`
-export OPENSSL_INCLUDE_DIR=`realpath "$BASEDIR"/../external-deps/openssl/include`
+export OPENSSL_LIB_DIR=`realpath "$BASEDIR"/deps/openssl`
+export OPENSSL_INCLUDE_DIR=`realpath "$BASEDIR"/deps/openssl/include`
 
 echo Compiling for armv7-linux-androideabi...
 cargo ndk --target armv7-linux-androideabi --android-platform 29 -- build --release
