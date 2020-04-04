@@ -1,8 +1,10 @@
-pub async fn check_username_availability<'a>(username: &'a str) -> Result<String, String> {
-  //return r#"{ action: "check_username_availability", result: true }"#;
-  return boom(username).await;
+pub async fn githost_check_username_availability<'a>(username: &'a str) -> Result<String, String> {
+    return boom(username).await;
 }
 
 async fn boom<'a>(username: &'a str) -> Result<String, String> {
-  return Ok(r#"{ action: "check_username_availability", result: true }"#.to_owned());
+    return match username {
+        "admin" => Err("false".to_owned()),
+        _ => Ok("true".to_owned()),
+    };
 }
