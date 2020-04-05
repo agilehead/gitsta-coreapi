@@ -13,7 +13,7 @@ use std::ffi::c_void;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::sync::Mutex;
-use tokio::runtime::Runtime;
+use tokio::{runtime::Runtime, sync::mpsc};
 
 mod actions;
 
@@ -109,46 +109,56 @@ pub unsafe extern "C" fn Java_com_gitsta_gitstaapp_plugins_GitstaCoreApiBridge_G
     let _gref_thiz = env.new_global_ref(thiz);
 
     let ret = JavaType::Primitive(Primitive::Void);
-    
-    // let create_java_cb = |method_id: JMethodID| {
-    //     let ret = JavaType::Primitive(Primitive::Void);
-    //     |result: String| {
+
+    // let create_java_cb = move |method_id: JMethodID| {
+    //     move |result: String| {
+    //         let ret = JavaType::Primitive(Primitive::Void);
     //         let cb_arg = env.new_string(result).unwrap();
     //         let _result = env.call_method_unchecked(
     //             thiz,
     //             method_id,
     //             ret,
     //             &[JValue::Object(JObject::from(cb_arg))],
-    //         );    
-    //     }        
+    //         );
+    //     }
     // };
 
-    // spawn the task on a threadpool thread
-    let action_result = RUNTIME
-        .lock()
-        .unwrap()
-        .block_on(async { actions::handle(str_action, str_args).await });
-
-    match action_result {
-        Ok(result) => {
-            let cb_arg = env.new_string(result).unwrap();
-            let _result = env.call_method_unchecked(
-                thiz,
-                success_method_id,
-                ret,
-                &[JValue::Object(JObject::from(cb_arg))],
-            );
-        }
-        Err(err) => {
-            let cb_arg = env.new_string(err).unwrap();
-            let _result = env.call_method_unchecked(
-                thiz,
-                error_method_id,
-                ret,
-                &[JValue::Object(JObject::from(cb_arg))],
-            );
-        }
+    let callbacks = actions::Callbacks {
+        ok: Box::new(|x: String| ()),
+        err: Box::new(|x: String| ()),
+        callback: Box::new(|x: String| ()),
     };
+
+    actions::run_action(str_action, str_args, &RUNTIME, callbacks);
+
+    // spawn the task on a threadpool thread
+    // let action_result = RUNTIME
+    //     .lock()let action_result = RUNTIME
+    //     .lock()
+    //     .unwrap()
+    //     .unwrap()
+    //     .block_on(async { actions::handle(str_action, str_args).await });
+
+    // match action_result {
+    //     Ok(result) => {
+    //         let cb_arg = env.new_string(result).unwrap();
+    //         let _result = env.call_method_unchecked(
+    //             thiz,
+    //             success_method_id,
+    //             ret,
+    //             &[JValue::Object(JObject::from(cb_arg))],
+    //         );
+    //     }
+    //     Err(err) => {
+    //         let cb_arg = env.new_string(err).unwrap();
+    //         let _result = env.call_method_unchecked(
+    //             thiz,
+    //             error_method_id,
+    //             ret,
+    //             &[JValue::Object(JObject::from(cb_arg))],
+    //         );
+    //     }
+    // };
 
     true
 }
