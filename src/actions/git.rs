@@ -1,16 +1,15 @@
 pub mod clone;
-use tokio::sync::mpsc::UnboundedSender;
-use crate::actions::ActionResult;
+use crate::actions::{ActionResult, SendActionResult};
 
 
 pub fn handle_async(
     action: &str,
     args: &str,
-    tx: &UnboundedSender<ActionResult>,
+    send: &SendActionResult,
 ) -> bool {
     match action {
         "clone_over_http" => {
-            clone::clone_over_http(args, tx);
+            clone::clone_over_http(args, send);
             true
         },
         _ => false,

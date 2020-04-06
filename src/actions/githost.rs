@@ -1,16 +1,15 @@
 pub mod account;
 pub mod provider;
-use tokio::sync::mpsc::UnboundedSender;
-use crate::actions::ActionResult;
+use crate::actions::{ActionResult, SendActionResult};
 
 pub fn handle_async(
     action: &str,
     args: &str,
-    tx: &UnboundedSender<ActionResult>,
+    send: &SendActionResult,
 ) -> bool {
     match action {
         "githost_check_username_availability" => {
-            account::githost_check_username_availability(args, tx);
+            account::githost_check_username_availability(args, send);
             true
         }
         _ => false,

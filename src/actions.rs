@@ -11,6 +11,8 @@ pub enum ActionResult {
     Callback(String),
 }
 
+pub type SendActionResult = Box<dyn Fn(ActionResult) -> ()>;
+
 pub struct Callbacks {
     pub ok: ActionCallback,
     pub err: ActionCallback,
@@ -31,8 +33,11 @@ pub async fn handle_async(
 ) {
     let (tx, mut rx) = mpsc::unbounded_channel::<ActionResult>();
 
-    let found_handler =
-        git::handle_async(action, args, &tx) || githost::handle_async(action, args, &tx);
+    let send = |result: ActionResult| ();
+    let boxed_send: Box<dyn Fn(ActionResult) -> ()> = Box::new(send);
+
+    let found_handler = git::handle_async(action, args, &boxed_send)
+        || githost::handle_async(action, args, &boxed_send);
 
     if (found_handler) {
         loop {

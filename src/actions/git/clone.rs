@@ -2,8 +2,7 @@ use crate::actions;
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{FetchOptions, Progress, RemoteCallbacks};
 use std::path::Path;
-use tokio::sync::mpsc::UnboundedSender;
-use crate::actions::ActionResult;
+use crate::actions::{ActionResult, SendActionResult};
 
 struct Repo<'a> {
     username: &'a str,
@@ -13,7 +12,7 @@ struct Repo<'a> {
 
 pub async fn clone_over_http<'a>(
     args: &str,
-    tx: &UnboundedSender<ActionResult>,
+    send: &SendActionResult,
 ) {
     let url = "https://github.com/alexcrichton/git2-rs";
     //let repo = Repository::clone(url, "/home/jeswin/temp/lalala");
@@ -26,5 +25,5 @@ pub async fn clone_over_http<'a>(
         .with_checkout(co)
         .clone(url, Path::new("/sdcard/boomer"));
 
-    tx.send(ActionResult::Result(Ok(r#"{ result: true, checked_out: 2 }"#.to_owned())));
+    send(ActionResult::Result(Ok(r#"{ result: true, checked_out: 2 }"#.to_owned())));
 }
