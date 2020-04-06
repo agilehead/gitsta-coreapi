@@ -1,10 +1,12 @@
-use crate::actions;
+use crate::actions::ActionResult;
+use tokio::sync::mpsc::UnboundedSender;
 
 pub async fn githost_check_username_availability<'a>(
     username: &'a str,
-    callback: &actions::ActionCallback,
-) -> Result<String, String> {
-    return boom(username).await;
+    tx: &UnboundedSender<ActionResult>,
+) {
+    let result = boom(username).await;
+    tx.send(ActionResult::Result(result));
 }
 
 async fn boom<'a>(username: &'a str) -> Result<String, String> {

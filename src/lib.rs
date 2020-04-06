@@ -110,18 +110,20 @@ pub unsafe extern "C" fn Java_com_gitsta_gitstaapp_plugins_GitstaCoreApiBridge_G
 
     let ret = JavaType::Primitive(Primitive::Void);
 
-    // let create_java_cb = move |method_id: JMethodID| {
+    // fn create_java_cb(method_id: &JMethodID) -> impl Fn(String) -> () {
     //     move |result: String| {
     //         let ret = JavaType::Primitive(Primitive::Void);
     //         let cb_arg = env.new_string(result).unwrap();
     //         let _result = env.call_method_unchecked(
     //             thiz,
-    //             method_id,
+    //             *method_id,
     //             ret,
     //             &[JValue::Object(JObject::from(cb_arg))],
     //         );
     //     }
     // };
+
+    // let boomer = create_java_cb(&success_method_id);
 
     let callbacks = actions::Callbacks {
         ok: Box::new(|x: String| ()),
@@ -129,13 +131,20 @@ pub unsafe extern "C" fn Java_com_gitsta_gitstaapp_plugins_GitstaCoreApiBridge_G
         callback: Box::new(|x: String| ()),
     };
 
-    actions::run_action(str_action, str_args, &RUNTIME, callbacks);
+    /*
+        We'd have preferred not blocking, but Android JVM can't handle callbacks from arbitrary threads. But still it isn't too bad. We're being called by Java threadpool threads.
+
+        A future update could be to attach the threadpool threads to the JVM on Android.
+        This can potentially avoid blocking on the action.
+    */
+    let action_result = RUNTIME
+        .lock()
+        .unwrap()
+        .block_on(async { actions::handle_async(str_action, str_args, &RUNTIME, callbacks).await });
 
     // spawn the task on a threadpool thread
     // let action_result = RUNTIME
-    //     .lock()let action_result = RUNTIME
     //     .lock()
-    //     .unwrap()
     //     .unwrap()
     //     .block_on(async { actions::handle(str_action, str_args).await });
 

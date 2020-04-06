@@ -2,9 +2,14 @@ pub mod git;
 pub mod githost;
 
 use std::sync::Mutex;
-use tokio::{runtime::Runtime};
+use tokio::{runtime::Runtime, sync::mpsc};
 
 pub type ActionCallback = Box<dyn Fn(String) -> ()>;
+
+pub enum ActionResult {
+    Result(Result<String, String>),
+    Callback(String),
+}
 
 pub struct Callbacks {
     pub ok: ActionCallback,
@@ -12,38 +17,58 @@ pub struct Callbacks {
     pub callback: ActionCallback,
 }
 
-
-pub fn run_action(action: &str, args: &str, runtime: &Mutex<Runtime>, callbacks: Callbacks) {
-    /*
-        Run the task on a threadpool thread and block.
-
-        We'd have preferred not blocking, but Android JVM can't handle callbacks from arbitrary threads. But still it isn't too bad. We're being called by Java threadpool threads.
-
-        A future update could be to attach the threadpool threads to the JVM on Android.
-        This can potentially avoid blocking on the action.
-    */
-    let action_result = runtime.lock().unwrap().block_on(async {
-        handle(action, args, &callbacks.callback)
-    });
-}
-
-pub async fn handle(action: &str, args: &str, callback: &ActionCallback) -> Result<String, String> {
-    let result = git::handle(action, args, callback)
-        .await
-        .or(githost::handle(action, args, callback).await);
-    handle_impl(action, args, result)
-}
-
-pub fn handle_sync(action: &str, args: &str) -> Result<String, String> {
-    let result = git::handle_sync(action, args).or(githost::handle_sync(action, args));
-    handle_impl(action, args, result)
-}
-
-fn handle_impl(
+/*
+    Async actions can do one of three things.
+    1. Return an Ok(result). This closes the callback context and no further responses are allowed.
+    2. Return an Err(err).. This closes the callback context and no further responses are allowed.
+    3. Return a Callback(data). This doesn't close the channel.
+*/
+pub async fn handle_async(
     action: &str,
     args: &str,
-    result: Option<Result<String, String>>,
-) -> Result<String, String> {
+    runtime: &Mutex<Runtime>,
+    callbacks: Callbacks,
+) {
+    let (tx, mut rx) = mpsc::unbounded_channel::<ActionResult>();
+
+    let found_handler =
+        git::handle_async(action, args, &tx) || githost::handle_async(action, args, &tx);
+
+    if (found_handler) {
+        loop {
+            let msg = rx.recv().await;
+            match msg {
+                Some(ActionResult::Result(Ok(msg_txt))) => {
+                    (callbacks.ok)(msg_txt);
+                    break;
+                }
+                Some(ActionResult::Result(Err(msg_txt))) => {
+                    (callbacks.err)(msg_txt);
+                    break;
+                }
+                Some(ActionResult::Callback(msg_txt)) => {
+                    (callbacks.callback)(msg_txt);
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+    } else {
+        (callbacks.err)(format!(
+            "{{ ok: false, error: \"The sync action {action} was unhandled.\" }}",
+            action = action
+        ));
+    }
+}
+
+/*
+    Sync actions can do one of three things.
+    1. Return an Ok(result). This closes the callback context and no further responses are allowed.
+    2. Return an Err(err).. This closes the callback context and no further responses are allowed.
+*/
+pub fn handle_sync(action: &str, args: &str) -> Result<String, String> {
+    let result = git::handle_sync(action, args).or(githost::handle_sync(action, args));
     match result {
         Some(Ok(result_success)) => Ok(format!(
             "{{ ok: true, result: {result} }}",
@@ -51,7 +76,7 @@ fn handle_impl(
         )),
         Some(Err(err)) => Err(format!("{{ error: {err}.\" }}", err = err)),
         None => Err(format!(
-            "{{ ok: false, error: \"Missing action {action}.\" }}",
+            "{{ ok: false, error: \"The sync action {action} was unhandled.\" }}",
             action = action
         )),
     }
