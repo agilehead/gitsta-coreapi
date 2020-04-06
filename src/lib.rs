@@ -131,16 +131,12 @@ pub unsafe extern "C" fn Java_com_gitsta_gitstaapp_plugins_GitstaCoreApiBridge_G
         callback: Box::new(|x: String| ()),
     };
 
-    /*
-        We'd have preferred not blocking, but Android JVM can't handle callbacks from arbitrary threads. But still it isn't too bad. We're being called by Java threadpool threads.
+    actions::handle_async(str_action, str_args, callbacks, &RUNTIME);
 
-        A future update could be to attach the threadpool threads to the JVM on Android.
-        This can potentially avoid blocking on the action.
-    */
-    let action_result = RUNTIME
-        .lock()
-        .unwrap()
-        .block_on(async { actions::handle_async(str_action, str_args, &RUNTIME, callbacks).await });
+    // let action_result = RUNTIME
+    //     .lock()
+    //     .unwrap()
+    //     .block_on(async { .await });
 
     // spawn the task on a threadpool thread
     // let action_result = RUNTIME

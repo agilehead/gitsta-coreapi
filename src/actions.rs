@@ -3,6 +3,7 @@ pub mod githost;
 
 use std::sync::Mutex;
 use tokio::{runtime::Runtime, sync::mpsc};
+use std::future::Future;
 
 pub type ActionCallback = Box<dyn Fn(String) -> ()>;
 
@@ -11,7 +12,9 @@ pub enum ActionResult {
     Callback(String),
 }
 
-pub type SendActionResult = Box<dyn Fn(ActionResult) -> ()>;
+pub type SendActionResult = Fn(ActionResult) -> ();
+
+pub type Action = fn(&str, SendActionResult) -> Future<Output=()>;
 
 pub struct Callbacks {
     pub ok: ActionCallback,
@@ -24,47 +27,66 @@ pub struct Callbacks {
     1. Return an Ok(result). This closes the callback context and no further responses are allowed.
     2. Return an Err(err).. This closes the callback context and no further responses are allowed.
     3. Return a Callback(data). This doesn't close the channel.
+
+    We'd have preferred not blocking, but Android JVM can't handle callbacks from arbitrary threads.
+    But still it isn't too bad. We're being called by Java threadpool threads.
+
+    A future update could be to attach the threadpool threads to the JVM on Android.
+    This can potentially avoid blocking on the action.
 */
+
 pub async fn handle_async(
     action: &str,
     args: &str,
-    runtime: &Mutex<Runtime>,
     callbacks: Callbacks,
+    runtime: &Mutex<Runtime>,
 ) {
-    let (tx, mut rx) = mpsc::unbounded_channel::<ActionResult>();
+    let maybe_action_handler = git::get_async_handler(action).or(githost::get_async_handler(action));
 
-    let send = |result: ActionResult| ();
-    let boxed_send: Box<dyn Fn(ActionResult) -> ()> = Box::new(send);
+    match maybe_action_handler {
+        Some(Action) => {
+            let (tx, mut rx) = mpsc::unbounded_channel::<ActionResult>();
 
-    let found_handler = git::handle_async(action, args, &boxed_send)
-        || githost::handle_async(action, args, &boxed_send);
+            let send = |result: ActionResult| ();
+            let boxed_send: Box<dyn Fn(ActionResult) -> ()> = Box::new(send);
 
-    if (found_handler) {
-        loop {
-            let msg = rx.recv().await;
-            match msg {
-                Some(ActionResult::Result(Ok(msg_txt))) => {
-                    (callbacks.ok)(msg_txt);
-                    break;
+            let found_handler = loop {
+                let msg = rx.recv().await;
+                match msg {
+                    Some(ActionResult::Result(Ok(msg_txt))) => {
+                        (callbacks.ok)(msg_txt);
+                        break true;
+                    },
+                    Some(ActionResult::Result(Err(msg_txt))) => {
+                        (callbacks.err)(msg_txt);
+                        break true;
+                    },
+                    Some(ActionResult::Callback(msg_txt)) => {
+                        (callbacks.callback)(msg_txt);
+                    },
+                    None => {
+                        break false;
+                    }
                 }
-                Some(ActionResult::Result(Err(msg_txt))) => {
-                    (callbacks.err)(msg_txt);
-                    break;
-                }
-                Some(ActionResult::Callback(msg_txt)) => {
-                    (callbacks.callback)(msg_txt);
-                }
-                None => {
-                    break;
-                }
-            }
+            };
+        },
+        None => {
+            (callbacks.err)(format!(
+                "{{ ok: false, error: \"The sync action {action} was unhandled.\" }}",
+                action = action
+            ));
         }
-    } else {
-        (callbacks.err)(format!(
-            "{{ ok: false, error: \"The sync action {action} was unhandled.\" }}",
-            action = action
-        ));
     }
+
+    // tokio::spawn(move  || {
+    //     let found_handler = git::handle_async(action, args, &boxed_send)
+    //         || githost::handle_async(action, args, &boxed_send);
+    //     if (!found_handler) {
+    //         tx.send(ActionResult::NotFound);
+    //     }
+    // });
+
+
 }
 
 /*
