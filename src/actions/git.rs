@@ -1,9 +1,9 @@
 pub mod clone;
 use crate::actions::Action;
 
-pub fn get_async_handler(action: &str) -> Option<Action> {
+pub fn get_async_handler(action: &str) -> Option<&Action> {
     match action {
-        "clone_over_http" => Some(clone::clone_over_http),
+        "clone_over_http" => Some(&clone::clone_over_http),
         _ => None,
     }
 }

@@ -12,9 +12,9 @@ pub enum ActionResult {
     Callback(String),
 }
 
-pub type SendActionResult = Fn(ActionResult) -> ();
+pub type SendActionResult = dyn Fn(ActionResult) -> ();
 
-pub type Action = fn(&str, SendActionResult) -> Future<Output=()>;
+pub type Action = dyn Fn(&str, &SendActionResult) -> dyn Future<Output=()>;
 
 pub struct Callbacks {
     pub ok: ActionCallback,
