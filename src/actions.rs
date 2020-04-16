@@ -1,9 +1,9 @@
 pub mod git;
 pub mod githost;
 
+use std::future::Future;
 use std::sync::Mutex;
 use tokio::{runtime::Runtime, sync::mpsc};
-use std::future::Future;
 
 pub type ActionCallback = Box<dyn Fn(String) -> ()>;
 
@@ -14,7 +14,7 @@ pub enum ActionResult {
 
 pub type SendActionResult = dyn Fn(ActionResult) -> ();
 
-pub type Action = dyn Fn(&str, &SendActionResult) -> dyn Future<Output=()>;
+pub type Action = dyn Fn(&str, &SendActionResult) -> dyn Future<Output = ()>;
 
 pub struct Callbacks {
     pub ok: ActionCallback,
@@ -41,7 +41,8 @@ pub async fn handle_async(
     callbacks: Callbacks,
     runtime: &Mutex<Runtime>,
 ) {
-    let maybe_action_handler = git::get_async_handler(action).or(githost::get_async_handler(action));
+    let maybe_action_handler =
+        git::get_async_handler(action).or(githost::get_async_handler(action));
 
     match maybe_action_handler {
         Some(Action) => {
@@ -56,20 +57,20 @@ pub async fn handle_async(
                     Some(ActionResult::Result(Ok(msg_txt))) => {
                         (callbacks.ok)(msg_txt);
                         break true;
-                    },
+                    }
                     Some(ActionResult::Result(Err(msg_txt))) => {
                         (callbacks.err)(msg_txt);
                         break true;
-                    },
+                    }
                     Some(ActionResult::Callback(msg_txt)) => {
                         (callbacks.callback)(msg_txt);
-                    },
+                    }
                     None => {
                         break false;
                     }
                 }
             };
-        },
+        }
         None => {
             (callbacks.err)(format!(
                 "{{ ok: false, error: \"The sync action {action} was unhandled.\" }}",
@@ -85,8 +86,6 @@ pub async fn handle_async(
     //         tx.send(ActionResult::NotFound);
     //     }
     // });
-
-
 }
 
 /*

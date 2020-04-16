@@ -4,7 +4,9 @@ use crate::actions::Action;
 
 pub fn get_async_handler(action: &str) -> Option<&Action> {
     match action {
-        // "githost_check_username_availability" => Some(account::githost_check_username_availability),
+        // "githost_check_username_availability" => Some(Box::new(|arg: &str| {
+        //     Box::new(account::githost_check_username_availability(arg))
+        // })),
         _ => None,
     }
 }
