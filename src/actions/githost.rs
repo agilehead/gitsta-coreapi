@@ -1,6 +1,6 @@
 pub mod account;
 pub mod provider;
-use crate::actions::{Action, ActionResultSend};
+use crate::actions::{Action, SyncAction, ActionResultSend};
 use std::future::Future;
 
 pub fn get_async_handler<'a>(
@@ -16,9 +16,9 @@ pub fn get_async_handler<'a>(
     }
 }
 
-pub fn handle_sync(action: &str, args: &str) -> Option<Result<String, String>> {
+pub fn get_sync_handler<'a>(action: &'a str) -> Option<Box<SyncAction>> {
     match action {
-        "githost_get_provider_sync" => Some(provider::githost_get_provider_sync()),
+        "githost_get_provider_sync" => Some(Box::new(provider::githost_get_provider_sync)),
         _ => None,
     }
 }

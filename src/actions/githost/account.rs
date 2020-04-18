@@ -1,6 +1,5 @@
 use crate::actions::{ActionResult, ActionResultSend};
 
-//pub async fn githost_check_username_availability(username: &'a str, send: &'a ActionResultSend) {
 pub async fn githost_check_username_availability<'a>(args: &'a str, send: &'a ActionResultSend) {
     let result = boom(args).await;
     //send(ActionResult::Result(result));

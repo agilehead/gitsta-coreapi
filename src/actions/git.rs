@@ -1,5 +1,5 @@
 pub mod clone;
-use crate::actions::{Action, ActionResultSend};
+use crate::actions::{Action, SyncAction, ActionResultSend};
 use std::future::Future;
 
 pub fn get_async_handler<'a>(
@@ -13,7 +13,7 @@ pub fn get_async_handler<'a>(
     }
 }
 
-pub fn handle_sync(action: &str, args: &str) -> Option<Result<String, String>> {
+pub fn get_sync_handler<'a>(action: &str) -> Option<Box<SyncAction>> {
     match action {
         _ => None,
     }

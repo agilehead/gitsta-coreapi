@@ -16,6 +16,7 @@ pub type ActionResultSend = dyn Fn(ActionResult) -> ();
 
 // pub type Action = dyn Fn(&str) -> Box<dyn Future<Output = ()>>;
 pub type Action<'a> = dyn Fn(&'a str, &'a ActionResultSend) -> Box<dyn Future<Output = ()> + 'a>;
+pub type SyncAction<'a> = dyn Fn(&'a str) -> Result<String, String>;
 
 pub struct Callbacks {
     pub ok: ActionCallback,
@@ -42,7 +43,8 @@ pub async fn handle_async(
     callbacks: Callbacks,
     runtime: &Mutex<Runtime>,
 ) {
-    let maybe_action_handler = git::get_async_handler(action); //.or(githost::get_async_handler(action));
+    let maybe_action_handler =
+        git::get_async_handler(action).or(githost::get_async_handler(action));
 
     match maybe_action_handler {
         Some(Action) => {
@@ -78,14 +80,6 @@ pub async fn handle_async(
             ));
         }
     }
-
-    // tokio::spawn(move  || {
-    //     let found_handler = git::handle_async(action, args, &boxed_send)
-    //         || githost::handle_async(action, args, &boxed_send);
-    //     if (!found_handler) {
-    //         tx.send(ActionResult::NotFound);
-    //     }
-    // });
 }
 
 /*
@@ -94,13 +88,19 @@ pub async fn handle_async(
     2. Return an Err(err).. This closes the callback context and no further responses are allowed.
 */
 pub fn handle_sync(action: &str, args: &str) -> Result<String, String> {
-    let result = git::handle_sync(action, args).or(githost::handle_sync(action, args));
-    match result {
-        Some(Ok(result_success)) => Ok(format!(
-            "{{ ok: true, result: {result} }}",
-            result = result_success
-        )),
-        Some(Err(err)) => Err(format!("{{ error: {err}.\" }}", err = err)),
+    let maybe_action_handler = git::get_sync_handler(action).or(githost::get_sync_handler(action));
+
+    match maybe_action_handler {
+        Some(action_handler) => {
+            let result = action_handler(args);
+            match result {
+                Ok(result_success) => Ok(format!(
+                    "{{ ok: true, result: {result} }}",
+                    result = result_success
+                )),
+                Err(err) => Err(format!("{{ error: {err}.\" }}", err = err)),
+            }
+        }
         None => Err(format!(
             "{{ ok: false, error: \"The sync action {action} was unhandled.\" }}",
             action = action
