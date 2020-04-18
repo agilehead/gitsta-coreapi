@@ -12,9 +12,10 @@ pub enum ActionResult {
     Callback(String),
 }
 
-pub type SendActionResult = dyn Fn(ActionResult) -> ();
+pub type ActionResultSend = dyn Fn(ActionResult) -> ();
 
-pub type Action = dyn Fn(&str, &SendActionResult) -> dyn Future<Output = ()>;
+// pub type Action = dyn Fn(&str) -> Box<dyn Future<Output = ()>>;
+pub type Action<'a> = dyn Fn(&'a str, &'a ActionResultSend) -> Box<dyn Future<Output = ()> + 'a>;
 
 pub struct Callbacks {
     pub ok: ActionCallback,
@@ -41,8 +42,7 @@ pub async fn handle_async(
     callbacks: Callbacks,
     runtime: &Mutex<Runtime>,
 ) {
-    let maybe_action_handler =
-        git::get_async_handler(action).or(githost::get_async_handler(action));
+    let maybe_action_handler = git::get_async_handler(action); //.or(githost::get_async_handler(action));
 
     match maybe_action_handler {
         Some(Action) => {

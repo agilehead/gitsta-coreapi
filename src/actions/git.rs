@@ -1,10 +1,13 @@
 pub mod clone;
-use crate::actions::Action;
+use crate::actions::{Action, ActionResultSend};
+use std::future::Future;
 
-pub fn get_async_handler(action: &str) -> Option<&Action> {
+pub fn get_async_handler<'a>(
+    action: &str,
+) -> Option<Box<Action>> {
     match action {
-        "clone_over_http" => Some(Box::new(|arg: &str| {
-            Box::new(clone::clone_over_http(arg))
+        "clone_over_http" => Some(Box::new(|arg: &str, send: &ActionResultSend| {
+            Box::new(clone::clone_over_http(arg, send))
         })),
         _ => None,
     }
