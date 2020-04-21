@@ -1,6 +1,6 @@
-use crate::actions::{ActionResult, ActionResultSend};
+use crate::actions::{AsyncActionResult, AsyncActionResultSend};
 
-pub async fn githost_check_username_availability<'a>(args: &'a str, send: &'a ActionResultSend) {
+pub async fn githost_check_username_availability<'a>(args: &'a str, send: &'a AsyncActionResultSend) {
     let result = boom(args).await;
     //send(ActionResult::Result(result));
 }

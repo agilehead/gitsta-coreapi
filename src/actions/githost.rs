@@ -1,14 +1,14 @@
 pub mod account;
 pub mod provider;
-use crate::actions::{Action, SyncAction, ActionResultSend};
+use crate::actions::{AsyncAction, SyncAction, AsyncActionResultSend};
 use std::future::Future;
 
 pub fn get_async_handler<'a>(
     action: &str,
-) -> Option<Box<Action>> {
+) -> Option<Box<AsyncAction>> {
     match action {
         "githost_check_username_availability" => {
-            Some(Box::new(|arg: &str, send: &ActionResultSend| {
+            Some(Box::new(|arg: &str, send: &AsyncActionResultSend| {
                 Box::new(account::githost_check_username_availability(arg, send))
             }))
         }

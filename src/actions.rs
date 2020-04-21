@@ -5,23 +5,23 @@ use std::future::Future;
 use std::sync::Mutex;
 use tokio::{runtime::Runtime, sync::mpsc};
 
-pub type ActionCallback = Box<dyn Fn(String) -> ()>;
+pub type AsyncActionCallback = Box<dyn Fn(String) -> ()>;
 
-pub enum ActionResult {
+pub enum AsyncActionResult {
     Result(Result<String, String>),
     Callback(String),
 }
 
-pub type ActionResultSend = dyn Fn(ActionResult) -> ();
+pub type AsyncActionResultSend = dyn Fn(AsyncActionResult) -> ();
 
 // pub type Action = dyn Fn(&str) -> Box<dyn Future<Output = ()>>;
-pub type Action<'a> = dyn Fn(&'a str, &'a ActionResultSend) -> Box<dyn Future<Output = ()> + 'a>;
+pub type AsyncAction<'a> = dyn Fn(&'a str, &'a AsyncActionResultSend) -> Box<dyn Future<Output = ()> + 'a>;
 pub type SyncAction<'a> = dyn Fn(&'a str) -> Result<String, String>;
 
 pub struct Callbacks {
-    pub ok: ActionCallback,
-    pub err: ActionCallback,
-    pub callback: ActionCallback,
+    pub ok: AsyncActionCallback,
+    pub err: AsyncActionCallback,
+    pub callback: AsyncActionCallback,
 }
 
 /*
@@ -48,23 +48,23 @@ pub async fn handle_async(
 
     match maybe_action_handler {
         Some(Action) => {
-            let (tx, mut rx) = mpsc::unbounded_channel::<ActionResult>();
+            let (tx, mut rx) = mpsc::unbounded_channel::<AsyncActionResult>();
 
-            let send = |result: ActionResult| ();
-            let boxed_send: Box<dyn Fn(ActionResult) -> ()> = Box::new(send);
+            let send = |result: AsyncActionResult| ();
+            let boxed_send: Box<dyn Fn(AsyncActionResult) -> ()> = Box::new(send);
 
             let found_handler = loop {
                 let msg = rx.recv().await;
                 match msg {
-                    Some(ActionResult::Result(Ok(msg_txt))) => {
+                    Some(AsyncActionResult::Result(Ok(msg_txt))) => {
                         (callbacks.ok)(msg_txt);
                         break true;
                     }
-                    Some(ActionResult::Result(Err(msg_txt))) => {
+                    Some(AsyncActionResult::Result(Err(msg_txt))) => {
                         (callbacks.err)(msg_txt);
                         break true;
                     }
-                    Some(ActionResult::Callback(msg_txt)) => {
+                    Some(AsyncActionResult::Callback(msg_txt)) => {
                         (callbacks.callback)(msg_txt);
                     }
                     None => {

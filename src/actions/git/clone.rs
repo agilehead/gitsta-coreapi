@@ -1,5 +1,5 @@
 use crate::actions;
-use crate::actions::{ActionResult, ActionResultSend};
+use crate::actions::{AsyncActionResult, AsyncActionResultSend};
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{FetchOptions, Progress, RemoteCallbacks};
 use std::path::Path;
@@ -10,7 +10,7 @@ struct Repo<'a> {
     url: &'a str,
 }
 
-pub async fn clone_over_http<'a>(args: &'a str, send: &'a ActionResultSend) {
+pub async fn clone_over_http<'a>(args: &'a str, send: &'a AsyncActionResultSend) {
     let url = "https://github.com/alexcrichton/git2-rs";
     //let repo = Repository::clone(url, "/home/jeswin/temp/lalala");
 
