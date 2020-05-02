@@ -87,8 +87,8 @@ fn cache_method_id(env: &JNIEnv, method_name: &str, mutex: &Mutex<JMethodPtr>) {
 */
 #[no_mangle]
 pub unsafe extern "C" fn Java_com_gitsta_gitstaapp_plugins_GitstaCoreApiBridge_GitstaCoreApiCallContext_coreapicall(
-    env: JNIEnv,
-    thiz: JObject,
+    env: JNIEnv<'static>,
+    thiz: JObject<'static>,
     action: JString,
     args: JString,
 ) -> bool {
@@ -110,20 +110,24 @@ pub unsafe extern "C" fn Java_com_gitsta_gitstaapp_plugins_GitstaCoreApiBridge_G
 
     let ret = JavaType::Primitive(Primitive::Void);
 
-    // fn create_java_cb(method_id: &JMethodID) -> impl Fn(String) -> () {
-    //     move |result: String| {
-    //         let ret = JavaType::Primitive(Primitive::Void);
-    //         let cb_arg = env.new_string(result).unwrap();
-    //         let _result = env.call_method_unchecked(
-    //             thiz,
-    //             *method_id,
-    //             ret,
-    //             &[JValue::Object(JObject::from(cb_arg))],
-    //         );
-    //     }
-    // };
+    fn create_java_cb(
+        env: &'static JNIEnv,
+        thiz: &'static JObject,
+        method_id: &'static JMethodID,
+    ) -> Box<dyn Fn(String) -> () + 'static> {
+        Box::new(|result: String| {
+            let ret = JavaType::Primitive(Primitive::Void);
+            let cb_arg = env.new_string(result).unwrap();
+            let _result = env.call_method_unchecked(
+                *thiz,
+                *method_id,
+                ret,
+                &[JValue::Object(JObject::from(cb_arg))],
+            );
+        })
+    };
 
-    // let boomer = create_java_cb(&success_method_id);
+    let boomer = create_java_cb(&env, &thiz, &success_method_id);
 
     let callbacks = actions::Callbacks {
         ok: Box::new(|x: String| ()),

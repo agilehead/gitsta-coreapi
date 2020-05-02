@@ -15,7 +15,8 @@ pub enum AsyncActionResult {
 pub type AsyncActionResultSend = dyn Fn(AsyncActionResult) -> ();
 
 // pub type Action = dyn Fn(&str) -> Box<dyn Future<Output = ()>>;
-pub type AsyncAction<'a> = dyn Fn(&'a str, &'a AsyncActionResultSend) -> Box<dyn Future<Output = ()> + 'a>;
+pub type AsyncAction<'a> =
+    dyn Fn(&'a str, &'a AsyncActionResultSend) -> Box<dyn Future<Output = ()> + 'a>;
 pub type SyncAction<'a> = dyn Fn(&'a str) -> Result<String, String>;
 
 pub struct Callbacks {
@@ -37,12 +38,7 @@ pub struct Callbacks {
     This can potentially avoid blocking on the action.
 */
 
-pub async fn handle_async(
-    action: &str,
-    args: &str,
-    callbacks: Callbacks,
-    runtime: &Mutex<Runtime>,
-) {
+pub fn handle_async(action: &str, args: &str, callbacks: Callbacks, runtime: &Mutex<Runtime>) {
     let maybe_action_handler =
         git::get_async_handler(action).or(githost::get_async_handler(action));
 
@@ -53,25 +49,26 @@ pub async fn handle_async(
             let send = |result: AsyncActionResult| ();
             let boxed_send: Box<dyn Fn(AsyncActionResult) -> ()> = Box::new(send);
 
-            let found_handler = loop {
-                let msg = rx.recv().await;
+            loop {
+                let msg = runtime.lock().unwrap().block_on(async { rx.recv().await });
+
                 match msg {
                     Some(AsyncActionResult::Result(Ok(msg_txt))) => {
                         (callbacks.ok)(msg_txt);
-                        break true;
+                        break;
                     }
                     Some(AsyncActionResult::Result(Err(msg_txt))) => {
                         (callbacks.err)(msg_txt);
-                        break true;
+                        break;
                     }
                     Some(AsyncActionResult::Callback(msg_txt)) => {
                         (callbacks.callback)(msg_txt);
                     }
                     None => {
-                        break false;
+                        break;
                     }
                 }
-            };
+            }
         }
         None => {
             (callbacks.err)(format!(
